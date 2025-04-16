@@ -117,6 +117,15 @@ export async function bindSignal(cameraIds: number[],signalId?:number) {
     }
   });
 }
+/** 查看图像 */
+export async function viewImage(indexCode:string) {
+  return request<String>('/api/camera/view', {
+    method: 'POST',
+    data:{
+      indexCode: indexCode
+    }
+  });
+}
 
 /* ============ 设备接口 end============= */
 

@@ -1,4 +1,4 @@
-import { addRule, removeRule, rule, updateRule, cameras, getSignalList, getRegionOptions, bindSignal } from '@/services/ant-design-pro/api';
+import { addRule, removeRule, rule, updateRule, cameras, getSignalList, getRegionOptions, bindSignal, viewImage } from '@/services/ant-design-pro/api';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProDescriptionsItemProps } from '@ant-design/pro-components';
 import {
@@ -12,7 +12,7 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import '@umijs/max';
-import { Button, Drawer, Input, message } from 'antd';
+import { Button, Drawer, Input, message, Image, Modal } from 'antd';
 import React, { useRef, useState, useEffect } from 'react';
 import type { FormValueType } from './components/UpdateForm';
 import UpdateForm from './components/UpdateForm';
@@ -130,6 +130,11 @@ const TableList: React.FC = () => {
   const [currentRow, setCurrentRow] = useState<API.CameraListItem>();
   const [selectedRowsState, setSelectedRows] = useState<API.CameraListItem[]>([]);
   const [regionOptions, setRegionOptions] = useState<{ value: string; label: string }[]>([]);
+  const [viewRtspImage, setViewRtspImage] = useState<boolean>(false);
+  const [imageBase64, setImageBase64] = useState<string>('');
+  const [viewBtnLoading, setViewBtnLoading] = useState<boolean>(false); // 新增加载状态
+  const [viewImageModalOpen, handelViewImageModalOpen] = useState<boolean>(false);
+
 
   useEffect(() => {
     const fetchRegionOptions = async () => {
@@ -207,18 +212,7 @@ const TableList: React.FC = () => {
           if (option.label.includes(processedInput)) return true;
           const match = pinyin(option.label)
           if (match.includes(processedInput)) return true;
-        },
-        dropdownStyle: {
-          'direction': 'rtl', /* 关键属性：从右到左文本方向 */
-          'text-align': 'right',
-          'white-space': 'nowrap',
-          'overflow': 'hidden',
-          'text-overflow': 'ellipsis',
-          'width': '600'
-          // maxWidth: 600, // 可根据实际需求调整最大宽度
-          // whiteSpace: 'normal', // 允许文本换行
-          // wordBreak: 'break-all', // 长单词换行
-        },
+        }
       },
       
       
@@ -288,9 +282,23 @@ const TableList: React.FC = () => {
       render: (_, record) => [
         <a
           key="config"
-          onClick={() => {
-            handleUpdateModalOpen(true);
-            setCurrentRow(record);
+          // loading={viewBtnLoading}
+          onClick={async () => {
+            if (viewBtnLoading) return;
+            setViewBtnLoading(true);
+            try {
+              handelViewImageModalOpen(true);
+              const res = await viewImage(record.indexCode);
+              if (res.code === 200) {
+                setImageBase64(res.data);
+                setViewRtspImage(true);
+              }
+            } catch (error) {
+              message.error('查看图像失败，请重试');
+              console.error('查看图像失败:', error);
+            } finally {
+              setViewBtnLoading(false); // 加载结束
+            }
           }}
         >
           查看图像
@@ -330,6 +338,13 @@ const TableList: React.FC = () => {
           },
         }}
       />
+      {/* {viewRtspImage && (
+        <div>
+          <Button onClick={() => setViewRtspImage(false)}>关闭图像</Button>
+          <Image src={imageBase64} alt="Camera Image" />
+        </div>
+      )} */}
+
       {selectedRowsState?.length > 0 && (
         <FooterToolbar
           extra={
@@ -365,6 +380,26 @@ const TableList: React.FC = () => {
           >分配通路</Button>
         </FooterToolbar>
       )}
+      <Modal
+      title="查看图像"
+      open={viewImageModalOpen}
+      loading={viewBtnLoading}
+      onCancel={() => {
+        handelViewImageModalOpen(false);
+        setImageBase64('');
+      }}
+      footer={null}
+      >
+        {viewBtnLoading ? (
+          // 加载时显示加载信息
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <span>正在加载图片，请稍候...</span>
+          </div>
+        ) : (
+          // 加载完成显示图片
+          <Image src={`data:image/jpg;base64,${imageBase64}`} alt="Camera Image" style={{ width: '100%' }} />
+        )}
+      </Modal>
       <ModalForm
         title={'新建规则'}
         width="400px"

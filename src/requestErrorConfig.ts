@@ -50,26 +50,22 @@ export const errorConfig: RequestConfig = {
   errorConfig: {
     // 错误抛出
     errorThrower: (res) => {
+      console.log('errorThrower', res)
       const { success, data, code, msg } =
         res as unknown as ResponseStructure;
       if (!success) {
-        const error: any = new Error(msg);
-        error.name = 'BizError';
-        error.info = { code, msg, data };
-        throw error; // 抛出自制的错误
+        // message.error(msg);
+        // const error: any = new Error(msg);
+        // error.name = 'BizError';
+        // error.info = { code, msg, data };
+        // throw error; // 抛出自制的错误
       }
     },
     // 错误接收及处理
     errorHandler: (error: any, opts: any) => {
       if (opts?.skipErrorHandler) throw error;
       // 我们的 errorThrower 抛出的错误。
-      if (error.name === 'BizError') {
-        const errorInfo: ResponseStructure | undefined = error.info;
-        if (errorInfo) {
-          const { msg, code } = errorInfo;
-          message.error(msg);
-        }
-      } else if (error.response) {
+      if (error.response) {
         // Axios 的错误
         // 请求成功发出且服务器也响应了状态码，但状态代码超出了 2xx 的范围
         message.error(`Response status:${error.response.status}`);
@@ -112,6 +108,8 @@ export const errorConfig: RequestConfig = {
             success: data?.code === 200,
             data: data?.data.items,
             total: data?.data.total,
+            code: data?.code,
+            msg: data?.msg,
           }
         }
       } else {
@@ -120,6 +118,8 @@ export const errorConfig: RequestConfig = {
           data: {
             success: data?.code === 200,
             data: data?.data,
+            code: data?.code,
+            msg: data?.msg,
           }
         }
       }
