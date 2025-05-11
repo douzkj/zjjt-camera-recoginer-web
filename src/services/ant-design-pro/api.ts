@@ -89,7 +89,7 @@ export async function removeRule(options?: { [key: string]: any }) {
     method: 'POST',
     data:{
       method: 'delete',
-      ...(options || {}),
+      ...(options || {})
     }
   });
 }
@@ -184,6 +184,40 @@ export async function closeSignal(id: number) {
       id: id
     }
   });
+}
+
+export async function tasks(options?: { [key: string]: any }) {
+  return request<API.TaskListItem>('/api/signal/tasks', {
+    method: 'GET',
+    params: {
+     ...(options || {}),
+    },
+    ...(options || {}),
+  });
+  
+}
+
+
+export async function taskDetailPage(options?: { [key: string]: any }) {
+  return request<API.TaskDetailListItem>('/api/tasks/page', {
+    method: 'GET',
+    params: {
+     ...(options || {}),
+    },
+    ...(options || {}),
+  });
+  
+}
+
+
+export async function cleanSimilarImages(folder: string) {
+  return request<API.CleanupSimilarImagesResponse>('/api/tasks/cleanup', {
+    method: 'POST',
+    data: {
+      folder: folder
+    }
+  });
+
 }
 /* ============ 通路接口 end============= */
 

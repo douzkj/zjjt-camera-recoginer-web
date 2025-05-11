@@ -1,4 +1,4 @@
-import { addRule, removeRule, rule, updateRule, getSignalList,getSignalPage, addSignal, openSignal, closeSignal, updateSignal } from '@/services/ant-design-pro/api';
+import { addRule, removeRule, rule, updateRule, getSignalList,getSignalPage, addSignal, openSignal, closeSignal, updateSignal, tasks } from '@/services/ant-design-pro/api';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProDescriptionsItemProps, ProFormColumnsType } from '@ant-design/pro-components';
 import {
@@ -18,13 +18,16 @@ import {
   ProFormDigit,
   ProFormFieldSet,
   ProFormSwitch,
-  ProFormDependency
+  ProFormDependency,
+  ProFormInstance
 } from '@ant-design/pro-components';
 import '@umijs/max';
-import { Button, Drawer, Input, message,Tag, Typography, Form } from 'antd';
+import { Button, Drawer, Input, message,Tag, Typography, Form, Modal } from 'antd';
 import React, { useRef, useState } from 'react';
 import type { FormValueType } from './components/UpdateForm';
 import UpdateForm from './components/UpdateForm';
+// 导入 useNavigate
+import { useNavigate } from 'react-router-dom'; 
 
 const TYPE_SPECIAL = 'SPECIAL';
 const TYPE_GENERAL = 'GENERAL';
@@ -142,6 +145,8 @@ const TableList: React.FC = () => {
   const [updateModalOpen, handleUpdateModalOpen] = useState<boolean>(false);
   const [showDetail, setShowDetail] = useState<boolean>(false);
   const actionRef = useRef<ActionType>();
+  const historyActionRef = useRef<ActionType>();
+  const hisotryFormRef = useRef<ProFormInstance>();
   const [createFormRef] = Form.useForm<FormValueType>(); // 使用 useForm 钩子并指定表单值类型
   const [currentRow, setCurrentRow] = useState<API.SignalListItem>();
   const [selectedRowsState, setSelectedRows] = useState<API.RuleListItem[]>([]);
@@ -149,6 +154,11 @@ const TableList: React.FC = () => {
   // 新增状态，用于区分是新建还是编辑操作
   const [isEditing, setIsEditing] = useState<boolean>(false); 
   const DEFAULT_GENERAL_STORAGE_PATH = '/data/zjjt_camera_recognizer/algo/dataset_raw/general'
+  const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false);
+  const [hisotryFormInitialValues, setHistoryFormInitialValues] = useState({});
+
+  // 获取 navigate 方法
+  const navigate = useNavigate(); 
 
   const onTypeChange = (value) => {
     // 当切换为通用类型时设置默认路径
@@ -189,8 +199,8 @@ const TableList: React.FC = () => {
 
   const columns: ProColumns<API.SignalListItem>[] = [
     {
-      title: '通路名称',
-      dataIndex: 'name',
+      title: '通路ID',
+      dataIndex: 'id',
       render: (dom, entity) => {
         return (
           <a
@@ -205,7 +215,23 @@ const TableList: React.FC = () => {
       },
     },
     {
-      title: '设备描述',
+      title: '通路名称',
+      dataIndex: 'name',
+      // render: (dom, entity) => {
+      //   return (
+      //     <a
+      //       onClick={() => {
+      //         setCurrentRow(entity);
+      //         setShowDetail(true);
+      //       }}
+      //     >
+      //       {dom}
+      //     </a>
+      //   );
+      // },
+    },
+    {
+      title: '通路描述',
       dataIndex: 'description',
       hideInForm: true,
       valueType: 'textarea',
@@ -225,13 +251,38 @@ const TableList: React.FC = () => {
         }
       },
     },
+    {
+      title: '设备数量',
+      dataIndex: 'cameraCnt',
+      hideInForm: true,
+      render: (dom, entity) => {
+        return (
+          <a
+            onClick={() => {
+              navigate(`/camera?signalId=${entity.id}`); 
+            }}
+          >
+            {dom}
+          </a>
+        );
+      }
+    },
     
-    // {
-    //   title: '设备数量',
-    //   dataIndex: 'cameraCnt',
-    //   hideInForm: true,
-    //   hideInSearch: true
-    // },
+    {
+      title: '采集图像数量',
+      dataIndex: 'frameImageCnt',
+      hideInForm: true,
+      hideInSearch: true
+    },
+    {
+      title: '打标信息（图片数量, JSON数量）',
+      dataIndex: 'labelInfo',
+      hideInForm: true,
+      hideInSearch: true,
+      render: (dom, entity) => {
+        return `${entity.labelImageCnt ?? '-'}, ${entity?.labelJsonCnt ?? '-'}`
+      }
+    },
 
     {
       title: '状态',
@@ -320,7 +371,18 @@ const TableList: React.FC = () => {
             style={buttonStyle} // 应用样式
           >
             编辑
-          </Button>
+          </Button>,
+           <Button
+           type="link"
+           onClick={() => {
+             setIsHistoryModalVisible(true);
+             setCurrentRow(record)
+             historyActionRef.current?.reload()
+           }}
+           style={buttonStyle} // 应用样式
+         >
+           历史任务
+         </Button>
         )
         
         return btns
@@ -328,9 +390,80 @@ const TableList: React.FC = () => {
     },
   ];
 
+  const historyTaskcolumns: ProColumns<API.TaskListItem>[] = [
+    {
+      title: '任务ID',
+      dataIndex: 'taskId',
+      // render: (dom, entity) => {
+      //   return (
+      //     <a
+      //       onClick={() => {
+      //         setCurrentRow(entity);
+      //         setShowDetail(true);
+      //       }}
+      //     >
+      //       {dom}
+      //     </a>
+      //   );
+      // },
+    },
+    {
+      title: '通路ID',
+      dataIndex: 'signalId',
+      hideInForm: true,
+      hideInSearch: true,
+      hideInTable: true
+    },
+    {
+      title: '采集图像数量',
+      dataIndex: 'frameImageCnt',
+      hideInForm: true,
+      hideInSearch: true
+    },
+    {
+      title: '打标信息（图片数量, JSON数量）',
+      dataIndex: 'labelInfo',
+      hideInForm: true,
+      hideInSearch: true,
+      render: (dom, entity) => {
+        return `${entity.labelImageCnt ?? '-'}, ${entity?.labelJsonCnt ?? '-'}`
+      }
+    },
+
+    {
+      title: '状态',
+      dataIndex: 'status',
+      hideInForm: true,
+      valueEnum: {
+        0: {
+          text: '关闭',
+          status: 'Default',
+        },
+        1: {
+          text: '采集中',
+          status: 'Processing',
+        },
+      },
+    },
+    {
+      title: '采集开始时间',
+      // sorter: true,
+      dataIndex: 'openedAtMs',
+      valueType: 'dateTime',
+      search: false,
+    },
+    {
+      title: '采集结束时间',
+      // sorter: true,
+      dataIndex: 'closedAtMs',
+      valueType: 'dateTime',
+      search: false,
+    }
+  ];
+
   return (
     <PageContainer>
-      <ProTable<API.RuleListItem, API.PageParams>
+      <ProTable<API.SignalListItem, API.PageParams>
         actionRef={actionRef}
         rowKey="id"
         search={{
@@ -355,7 +488,35 @@ const TableList: React.FC = () => {
         //   },
         // }}
       />
-
+      <Modal
+        title={`[${currentRow?.name}] 历史任务`}
+        visible={isHistoryModalVisible}
+        onCancel={() => {
+          setIsHistoryModalVisible(false);
+        }}
+        destroyOnClose
+        footer={null}
+        width={1200} // 增加宽度，可根据需求调整
+        style={{
+          maxHeight: '90vh', // 设置最大高度为视口高度的 90%
+        }}
+        bodyStyle={{
+          maxHeight: '70vh', // 设置模态框内容区域的最大高度
+          overflowY: 'auto' // 当内容超出高度时显示滚动条
+        }}
+      
+      >
+       <ProTable<API.TaskListItem, API.PageParams>
+          actionRef={historyActionRef}
+          columns={historyTaskcolumns}
+          formRef={hisotryFormRef}
+          request={ async (params) => {
+            console.log('currentRow', currentRow, "params", params)
+            return await tasks({"signalId": currentRow?.id, ...params})
+          }}
+          rowKey="id"
+        />
+      </Modal>
       <ModalForm
         title={'开始采集'}
         layout='horizontal'
@@ -404,14 +565,10 @@ const TableList: React.FC = () => {
                             required: true,
                             message: '请输入',
                           },
-                          // {
-                          //   min: 1,
-                          //   message: '时长不能小于1小时',
-                          // }
                         ]}
                         label="采集时长（单位：时）"
                         tooltip="开始采集后多久自动结束"
-                        min={1}
+                        min={0.1}
                       />
                     ) : null;
                   }}

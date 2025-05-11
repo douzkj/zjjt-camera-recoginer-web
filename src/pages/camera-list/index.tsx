@@ -10,6 +10,7 @@ import {
   ProFormText,
   ProFormTextArea,
   ProTable,
+  ProFormInstance,
 } from '@ant-design/pro-components';
 import '@umijs/max';
 import { Button, Drawer, Input, message, Image, Modal } from 'antd';
@@ -17,6 +18,9 @@ import React, { useRef, useState, useEffect } from 'react';
 import type { FormValueType } from './components/UpdateForm';
 import UpdateForm from './components/UpdateForm';
 import { pinyin } from 'pinyin-pro';
+// 导入 useLocation 钩子
+import { useLocation } from 'react-router-dom'; 
+
 
 /**
  * @en-US Add node
@@ -127,6 +131,7 @@ const TableList: React.FC = () => {
   const [bindSignalModalOpen, handleBindSignalModalOpen] = useState<boolean>(false);
   const [showDetail, setShowDetail] = useState<boolean>(false);
   const actionRef = useRef<ActionType>();
+  const formRef = useRef<ProFormInstance>();
   const [currentRow, setCurrentRow] = useState<API.CameraListItem>();
   const [selectedRowsState, setSelectedRows] = useState<API.CameraListItem[]>([]);
   const [regionOptions, setRegionOptions] = useState<{ value: string; label: string }[]>([]);
@@ -134,6 +139,8 @@ const TableList: React.FC = () => {
   const [imageBase64, setImageBase64] = useState<string>('');
   const [viewBtnLoading, setViewBtnLoading] = useState<boolean>(false); // 新增加载状态
   const [viewImageModalOpen, handelViewImageModalOpen] = useState<boolean>(false);
+  const [initialValues, setInitialValues] = useState({});
+  const location = useLocation();
 
 
   useEffect(() => {
@@ -152,6 +159,28 @@ const TableList: React.FC = () => {
 
     fetchRegionOptions();
   }, []);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    console.log("searchParams", searchParams)
+    if (searchParams.size > 0) {
+      const initiFormValues = Object.fromEntries(searchParams);
+      const numberSeriaFields = ['signalId'];
+      numberSeriaFields.forEach((field) => {
+        if (initiFormValues[field] !== undefined) {
+          let k = parseInt(initiFormValues[field]);
+          if (!isNaN(k)) {  
+            initiFormValues[field] = k;
+          } else {
+            delete initiFormValues[field];
+          }
+        }
+      });
+      setInitialValues(initiFormValues);
+      formRef.current?.setFieldsValue(initiFormValues);
+      formRef.current?.submit();
+    }
+  }, [location.search]);
   /**
    * @en-US International configuration
    * @zh-CN 国际化配置
@@ -220,7 +249,7 @@ const TableList: React.FC = () => {
     },
     {
       title: '通路',
-      dataIndex: 'signalName',
+      dataIndex: 'signalId',
       request: getSignalSelectOptions,
       valueType: 'select',
       search: {
@@ -231,8 +260,7 @@ const TableList: React.FC = () => {
             signalId: value, 
           };
         },
-      }
-     
+      },
     },
     {
       title: '状态',
@@ -314,20 +342,14 @@ const TableList: React.FC = () => {
       <ProTable<API.CameraListItem, API.PageParams>
         headerTitle={'查询表格'}
         actionRef={actionRef}
+        formRef={formRef}
+        form={{ initialValues }}
         rowKey="id"
         search={{
           labelWidth: 120,
         }}
         toolBarRender={() => [
-          // <Button
-          //   type="primary"
-          //   key="primary"
-          //   onClick={() => {
-          //     handleModalOpen(true);
-          //   }}
-          // >
-          //   <PlusOutlined /> 新建
-          // </Button>,
+ 
         ]}
         request={cameras}
         columns={columns}

@@ -20,6 +20,7 @@ export default [
   // { name: '查询表格', icon: 'table', path: '/list', component: './TableList' },
   { name: '设备列表', icon: 'camera', path: '/camera', component: './camera-list' },
   { name: '通道列表', icon:'wifi', path: '/signal', component: './signal-list' },
+  { name: '采集记录', icon:'hdd', path: '/task', component: './task-list' },
 
   { path: '/', redirect: '/camera' },
   { path: '*', layout: false, component: './404' },

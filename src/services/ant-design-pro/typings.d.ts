@@ -122,6 +122,54 @@ declare namespace API {
     success?: boolean;
   };
 
+
+  type TaskListItem = {
+    id?: number;
+    cameraIndexCode?: string;
+    cameraName?: string;
+    cameraAddr?: string;
+    regionPathName?:string;
+    regionIndexCode?:string;
+    taskId?:string;
+    signalId?:number;
+    frameImagePath?:string;
+    frameTimeMs?:number;
+    labelImagePath?:string;
+    labelJsonPath?:string;
+    labelTypes?:string;
+    labelTimeMs?:number;
+  }
+
+  type TaskList = {
+    data?: TaskListItem[];
+    /** 列表的内容总数 */
+    total?: number;
+    success?: boolean;
+  };
+
+
+  type TaskDetailListItem = {
+    id?: number;
+    cameraName?: string;
+    cameraIndexCode?: string;
+    
+  }
+
+  type CleanupSimilarImagesResponse = {
+    deletedRecordsCount?: number;
+    similarImagesCount?: number;
+  }
+
+
+  type TaskDetailList = {
+    data?: TaskDetailListItem[];
+    /** 列表的内容总数 */
+    total?: number;
+    success?: boolean;
+  }
+
+
+
   type SignalListItem = {
     id?: number;
     name?: string;
@@ -133,6 +181,9 @@ declare namespace API {
     closedAtMs?:number;
     status?: number;
     type?:string;
+    frameImageCnt?:number;
+    labelImageCnt?:number;
+    labelJsonCnt?:number;
   }
 
 

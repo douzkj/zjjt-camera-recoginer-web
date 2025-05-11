@@ -106,8 +106,8 @@ export const errorConfig: RequestConfig = {
           ...response,
           data: {
             success: data?.code === 200,
-            data: data?.data.items,
-            total: data?.data.total,
+            data: data?.data.items || [],
+            total: data?.data.total || 0,
             code: data?.code,
             msg: data?.msg,
           }
