@@ -1,4 +1,4 @@
-import { addRule, removeRule, rule, updateRule, getSignalList, getRegionOptions, addSignal, openSignal, closeSignal, updateSignal, taskDetailPage,cleanSimilarImages } from '@/services/ant-design-pro/api';
+import { addRule, removeRule, rule, updateRule, getSignalList, getRegionOptions, getCameraIndexes, addSignal, openSignal, closeSignal, updateSignal, taskDetailPage,cleanSimilarImages } from '@/services/ant-design-pro/api';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProDescriptionsItemProps, ProFormColumnsType } from '@ant-design/pro-components';
 import {
@@ -169,8 +169,10 @@ const TableList: React.FC = () => {
   const [isEditing, setIsEditing] = useState<boolean>(false); 
   const [showJsonModal, setShowJsonModal] = useState<boolean>(false);
   const [downloadOptionsModal, setDownloadOptionsModal] = useState<boolean>(false);
+  const [downloadBtnLoading, setDownloadBtnLoading] = useState<boolean>(false);
   const [jsonData, setJsonData] = useState<any>(null);
   const [regionOptions, setRegionOptions] = useState<{ value: string; label: string }[]>([]);
+  const [cameraIndexes, setCameraIndexes] = useState<{ value: string; label: string }[]>([]);
   const [isJsonModalLoading, setIsJsonModalLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -187,7 +189,21 @@ const TableList: React.FC = () => {
       }
     };
 
+    const fetchCameraIndexCodeOptions = async () => {
+      try {
+        const res = await getCameraIndexes();
+        const options = (res.data || []).map((item) => ({
+          value: item.indexCode,
+          label: item.indexCode,
+        }));
+        setCameraIndexes(options);
+      } catch (error) {
+        console.error('获取设备Id列表失败:', error);
+      }
+    }
+
     fetchRegionOptions();
+    fetchCameraIndexCodeOptions();
   }, []);
 
   // 获取 navigate 方法
@@ -227,9 +243,12 @@ const TableList: React.FC = () => {
     {
       title: '设备ID',
       dataIndex: 'cameraIndexCode',
+      valueType:'select',
         // 为搜索输入框添加多选模式
       fieldProps: {
         mode: 'multiple',
+        showSearch: true, // 显示搜索框
+        options: cameraIndexes,
       },
     },
     {
@@ -460,22 +479,23 @@ const TableList: React.FC = () => {
           labelWidth: 'auto',
         }}
         toolBarRender={() => [
-          <Button
-                     type="primary"
-                     key="primary"
-                     color="danger"
-                     variant="outlined"
-                     onClick={() => {
-                       handleModalOpen(true);
-                     }}
-                   >
-                     <ClearOutlined /> 清理相似图片
-                   </Button>,
+          // <Button
+          //            type="primary"
+          //            key="primary"
+          //            color="danger"
+          //            variant="outlined"
+          //            onClick={() => {
+          //              handleModalOpen(true);
+          //            }}
+          //          >
+          //            <ClearOutlined /> 清理相似图片
+          //          </Button>,
           <Button
             type="primary"
             key="primary"
             // color="danger"
             variant="outlined"
+            loading={downloadBtnLoading}
             onClick={ () => {
               setDownloadOptionsModal(true)
             }}
@@ -528,10 +548,7 @@ const TableList: React.FC = () => {
         open={downloadOptionsModal}
         onOpenChange={setDownloadOptionsModal}
         onFinish={async (value) => {
-          console.log(value);
-          const id = currentRow?.id
-          console.log('form', formRef.current)
-          
+          setDownloadBtnLoading(true);
           const tableParams = formRef.current?.getFieldsValue();
           // 2. 手动转换 frameTimeSearc（如果存在）
           if (tableParams?.frameTimeSearc) {
@@ -557,21 +574,43 @@ const TableList: React.FC = () => {
           });
           if (response.success) {
             setDownloadOptionsModal(false);
-            message.success(`下载完成！`);
-            // 创建隐藏的iframe触发下载
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = "/assets" + response.data.filepath;
-            document.body.appendChild(iframe);
-             // 清理iframe
-            setTimeout(() => {
-              document.body.removeChild(iframe);
-            }, 5000);
-            
+            message.success("开始下载...请耐心等候")
+            // 启动轮询
+            const pollInterval = setInterval(async () => {
+              const statusResponse = await request(`/api/tasks/download/status`, {
+                method: 'GET',
+                params: {
+                  'downloadId': response.data.downloadId,
+                },
+              });
+              if (statusResponse.data.status === 1) {
+                setDownloadBtnLoading(false);
+                message.destroy();
+                message.success('压缩包生成完毕. 开始下载!');
+                clearInterval(pollInterval);
+                // 创建隐藏的iframe触发下载
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = "/assets" + statusResponse.data.filepath;
+                document.body.appendChild(iframe);
+                // 清理iframe
+                setTimeout(() => {
+                  document.body.removeChild(iframe);
+                }, 5000);
+              } else if (statusResponse.data.status === 2) {
+                setDownloadBtnLoading(false);
+                clearInterval(pollInterval);
+                message.destroy();
+                message.error('压缩包生成失败');
+              }
+            }, 3000); // 每3秒轮询一次
+
+            // 组件卸载时清理定时器
+            return () => clearInterval(pollInterval);
           } else {
-            message.error('下载失败，请重试！');
+            message.error('下载任务生成失败，请重试！' + response.msg);
+            setDownloadBtnLoading(false);
           }
-         
         }}
       >
         <ProFormCheckbox.Group name="downloadOptions" options={[

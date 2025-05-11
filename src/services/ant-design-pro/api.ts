@@ -117,6 +117,13 @@ export async function bindSignal(cameraIds: number[],signalId?:number) {
     }
   });
 }
+
+export async function getCameraIndexes() {
+  return request<Boolean>('/api/camera/indexes', {
+    method: 'GET'
+  });
+}
+
 /** 查看图像 */
 export async function viewImage(indexCode:string) {
   return request<String>('/api/camera/view', {
