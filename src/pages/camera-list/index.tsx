@@ -340,7 +340,6 @@ const TableList: React.FC = () => {
   return (
     <PageContainer>
       <ProTable<API.CameraListItem, API.PageParams>
-        headerTitle={'查询表格'}
         actionRef={actionRef}
         formRef={formRef}
         form={{ initialValues }}

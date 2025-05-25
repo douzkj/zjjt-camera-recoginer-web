@@ -1,4 +1,4 @@
-import { addRule, removeRule, rule, updateRule, getSignalList, getRegionOptions, getCameraIndexes, addSignal, openSignal, closeSignal, updateSignal, taskDetailPage,cleanSimilarImages } from '@/services/ant-design-pro/api';
+import { addRule, removeRule, rule, updateRule, getSignalList, getRegionOptions, getCameraIndexes, addSignal, getCleaningState, openSignal, closeSignal, updateSignal, taskDetailPage,cleanSimilarImages } from '@/services/ant-design-pro/api';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProDescriptionsItemProps, ProFormColumnsType } from '@ant-design/pro-components';
 import {
@@ -21,13 +21,14 @@ import {
   ProFormDependency,
   ProFormInstance,
   ProFormDatePicker,
-  ProFormCheckbox
+  ProFormCheckbox,
+  ProFormDateTimeRangePicker
 } from '@ant-design/pro-components';
 import {
   FileTextOutlined,ClearOutlined, DownloadOutlined
 } from '@ant-design/icons';
 import '@umijs/max';
-import { Button, Drawer, Input, message,Tag, Typography, Form, Modal, Image, FloatButton } from 'antd';
+import { Button, Drawer, Input, message,Tag, Typography, Form, Modal, Image, FloatButton, Dropdown,Tooltip, Alert } from 'antd';
 import React, { useRef, useState, useEffect } from 'react';
 import type { FormValueType } from './components/UpdateForm';
 import UpdateForm from './components/UpdateForm';
@@ -155,7 +156,7 @@ const TableList: React.FC = () => {
    * @en-US Pop-up window of new window
    * @zh-CN 新建窗口的弹窗
    *  */
-  const [createModalOpen, handleModalOpen] = useState<boolean>(false);
+  const [cleanModalOpen, handleCleanModalOpen] = useState<boolean>(false);
   const [showDetail, setShowDetail] = useState<boolean>(false);
   const actionRef = useRef<ActionType>();
   const formRef = useRef<ProFormInstance>();
@@ -174,6 +175,44 @@ const TableList: React.FC = () => {
   const [regionOptions, setRegionOptions] = useState<{ value: string; label: string }[]>([]);
   const [cameraIndexes, setCameraIndexes] = useState<{ value: string; label: string }[]>([]);
   const [isJsonModalLoading, setIsJsonModalLoading] = useState<boolean>(false);
+  const [downloadAllState, setDownloadAll] =  useState<boolean>(false);
+  const [isCleaningState, setCleaning] = useState<boolean>(false);
+  // 在组件顶层添加 useRef 存储定时器
+  const cleanerTimerRef = useRef<NodeJS.Timeout>();
+  // 新增状态存储清理结果
+  const [lastCleanResult, setLastCleanResult] = useState<{
+      deletedRecords?: number;
+      deletedImages?: number;
+      startTime?: number;
+      error?: string;
+    }>();
+  const fechCleaningState = async () => {
+    try {
+      const res = await getCleaningState();
+      console.log(res)
+      if (res.success) {
+        setCleaning(res.data.is_running);
+        if (! res.data.is_running) {
+          setLastCleanResult({
+            deletedRecords: res.data.deletedRecordsCount,
+            deletedImages: res.data.similarImagesCount,
+            startTime: res.data.start_time,
+            error: res.data.error,
+          });
+          if (cleanerTimerRef.current) {
+            clearInterval(cleanerTimerRef.current);
+            cleanerTimerRef.current = undefined;
+          }
+        } else {
+          if (! cleanerTimerRef.current) {
+            cleanerTimerRef.current = setInterval(fechCleaningState, 3000);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('获取清理状态异常:', error);
+    }
+  }
 
   useEffect(() => {
     const fetchRegionOptions = async () => {
@@ -204,7 +243,17 @@ const TableList: React.FC = () => {
 
     fetchRegionOptions();
     fetchCameraIndexCodeOptions();
+    fechCleaningState();
   }, []);
+
+  // 在组件卸载时清除定时器
+useEffect(() => {
+  return () => {
+    if (cleanerTimerRef.current) {
+      clearInterval(cleanerTimerRef.current);
+    }
+  };
+}, []);
 
   // 获取 navigate 方法
   const navigate = useNavigate(); 
@@ -465,67 +514,121 @@ const TableList: React.FC = () => {
     },
   ];
 
-
+  const items = [
+    {
+      key: '1',
+      label: '下载全部',
+    }
+  ];
 
   return (
     <PageContainer>
-      {/* <FloatButton badge={{ count: 12 }} icon={<DownloadOutlined />} /> */}
-
       <ProTable<API.TaskListItem, API.PageParams>
         actionRef={actionRef}
         formRef={formRef} // 添加 formRef 引用
         rowKey="id"
+        toolbar={{
+          'subTitle': lastCleanResult?.startTime && (
+            lastCleanResult.error ? (
+              <Alert
+                message={`上次清理结果(${moment(lastCleanResult.startTime).format('YYYY-MM-DD HH:mm:ss')})：清理失败，错误信息：${lastCleanResult.error}`}
+                type="error"  
+                style={{
+                  fontSize: '12px',  // 设置小号字体
+                  padding: '4px 8px', // 调整内边距
+                  lineHeight: 1.5 
+                }}/>
+              ) : (
+              <Alert 
+              message={`上次清理结果(${moment(lastCleanResult.startTime).format('YYYY-MM-DD HH:mm:ss')})：删除 ${lastCleanResult.deletedRecords} 条记录，清理 ${lastCleanResult.deletedImages} 张图片`}
+              type="success"  style={{ 
+                fontSize: '12px',  // 设置小号字体
+                padding: '4px 8px', // 调整内边距
+                lineHeight: 1.5 
+              }}/>
+              )
+          )
+        }}
         search={{
           labelWidth: 'auto',
         }}
         toolBarRender={() => [
-          // <Button
-          //            type="primary"
-          //            key="primary"
-          //            color="danger"
-          //            variant="outlined"
-          //            onClick={() => {
-          //              handleModalOpen(true);
-          //            }}
-          //          >
-          //            <ClearOutlined /> 清理相似图片
-          //          </Button>,
-          <Button
+            <Button
+                type="primary"
+                key="primary"
+                color="danger"
+                variant="outlined"
+                loading={isCleaningState}
+                onClick={() => {
+                  handleCleanModalOpen(true);
+                }}
+              >
+              <ClearOutlined /> 清理相似图片
+              </Button> ,
+          <Dropdown.Button 
             type="primary"
             key="primary"
-            // color="danger"
-            variant="outlined"
+            // variant="outlined"
             loading={downloadBtnLoading}
             onClick={ () => {
+              setDownloadAll(false)
               setDownloadOptionsModal(true)
             }}
-          >
-            <DownloadOutlined /> 下载
-        </Button>
+            menu={{ items, onClick: (v) => {
+              console.log(v)
+              setDownloadAll(true)
+              setDownloadOptionsModal(true)
+            }}}
+            >
+              <DownloadOutlined /> 下载
+          </Dropdown.Button>,
+
+        //   <Button
+        //     type="primary"
+        //     key="primary"
+        //     // color="danger"
+        //     variant="outlined"
+        //     loading={downloadBtnLoading}
+        //     onClick={ () => {
+        //       setDownloadOptionsModal(true)
+        //     }}
+        //   >
+        //     <DownloadOutlined /> 下载
+        // </Button>
         ]}
         request={taskDetailPage}
         columns={columns}
 
-        // rowSelection={{
-        //   onChange: (_, selectedRows) => {
-        //     setSelectedRows(selectedRows);
-        //   },
-        // }}
+        rowSelection={{
+          onChange: (_, selectedRows) => {
+            setSelectedRows(selectedRows);
+          },
+        }}
       />
       <ModalForm
         title="清理文件夹"
-        open={createModalOpen}
-        onOpenChange={handleModalOpen}
+        open={cleanModalOpen}
+        onOpenChange={handleCleanModalOpen}
         onFinish={async (value) => {
           const id = currentRow?.id
-          const response = await cleanSimilarImages(value.folder);
-          console.log(response)
+          const post_data = {
+            folder: value.folder,
+            start: moment(value.timeRange[0]).format('YYYYMMDDHHmmss'),
+            end: moment(value.timeRange[1]).format('YYYYMMDDHHmmss'),
+          }
+          const response = await cleanSimilarImages(post_data);
           if (response.success) {
-            handleModalOpen(false);
-            message.success(`清理完成！删除记录 ${response.data.deletedRecordsCount} 条，清理图片 ${response.data.similarImagesCount} 张`);
+            handleCleanModalOpen(false);
+            setCleaning(true);
+            // message.success(`清理完成！删除记录 ${response.data.deletedRecordsCount} 条，清理图片 ${response.data.similarImagesCount} 张`);
+            message.success('提交清理任务成功...请耐心等候')
             if (actionRef.current) {
               actionRef.current.reload();
             }
+            if (cleanerTimerRef.current) {
+              clearInterval(cleanerTimerRef.current);
+            }
+            cleanerTimerRef.current = setInterval(fechCleaningState, 3000);
           } else {
             message.error('清理失败，请重试！');
           }
@@ -541,6 +644,16 @@ const TableList: React.FC = () => {
           width="md"
           name="folder"
           label="文件夹路径"
+        />
+        <ProFormDateTimeRangePicker
+          rules={[
+            {
+              required: true,
+              message: '清理时间必填',
+            },
+          ]}
+          name="timeRange"
+          label="清理时间"
         />
       </ModalForm>
       <ModalForm
@@ -565,7 +678,11 @@ const TableList: React.FC = () => {
           const data = {
             page: {...tableParams},
             options: downloadOptions,
+          }
 
+          if (! downloadAllState) {
+            // 下载指定行时，只下载选中的行
+            data.idList =  selectedRowsState.map((row) => row.id)
           }
           console.log('post data', data)
           const response = await request('/api/tasks/download', {

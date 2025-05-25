@@ -1,4 +1,4 @@
-import { WifiOutlined } from '@ant-design/icons';
+import { WifiOutlined, PieChartOutlined } from '@ant-design/icons';
 
 export default [
   // {
@@ -18,10 +18,14 @@ export default [
     ],
   },
   // { name: '查询表格', icon: 'table', path: '/list', component: './TableList' },
+  { name: '统计', icon: 'pieChart', path: '/chart', component: './chart' },
   { name: '设备列表', icon: 'camera', path: '/camera', component: './camera-list' },
   { name: '通道列表', icon:'wifi', path: '/signal', component: './signal-list' },
   { name: '采集记录', icon:'hdd', path: '/task', component: './task-list' },
 
-  { path: '/', redirect: '/camera' },
+
+
+
+  { path: '/', redirect: '/chart' },
   { path: '*', layout: false, component: './404' },
 ];

@@ -217,14 +217,20 @@ export async function taskDetailPage(options?: { [key: string]: any }) {
 }
 
 
-export async function cleanSimilarImages(folder: string) {
-  return request<API.CleanupSimilarImagesResponse>('/api/tasks/cleanup', {
+export async function cleanSimilarImages(options?: { [key: string]: any }) {
+  return request<API.CleanupSimilarImagesResponse>('/api/algo/task/cleanup', {
     method: 'POST',
-    data: {
-      folder: folder
+    data:{
+      ...(options || {}),
     }
   });
 
+}
+
+export async function getCleaningState() {
+  return request('/api/algo/task/cleanup/state', {
+    method: 'GET',
+  });
 }
 /* ============ 通路接口 end============= */
 
