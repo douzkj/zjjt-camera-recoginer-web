@@ -345,6 +345,8 @@ const ChartShow : React.FC = () => {
     // 在组件外部计算全局最大值
     const globalMaxValue = Math.max(...data.map(item => Math.max(item.imageValue, item.instanceValue)));
     console.log('globalMaxValue', globalMaxValue)
+    const instanceTotalValue = data.reduce((acc, item) => acc + item.instanceValue, 0);
+    const imageTotalValue = data.reduce((acc, item) => acc + item.imageValue, 0);
 
     const columns = [{
         dataIndex: 'classificationPk',
@@ -386,7 +388,7 @@ const ChartShow : React.FC = () => {
             return (
                 <div>
                     <Typography.Text strong>数量</Typography.Text>
-                    <Typography.Text type="secondary">（<Tag color='#1677ff'>实例数量</Tag>/ <Tag color='#d46b08'>图片数量</Tag>）</Typography.Text>
+                    <Typography.Text type="secondary">（<Tag color='#1677ff'>实例数量({instanceTotalValue})</Tag>/ <Tag color='#d46b08'>图片数量({imageTotalValue})</Tag>）</Typography.Text>
                 </div>
             )
         },
