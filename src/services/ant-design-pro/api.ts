@@ -234,6 +234,18 @@ export async function getCleaningState() {
 }
 /* ============ 通路接口 end============= */
 
+/** 获取设备列表 GET /api/region/options */
+export async function getTargetLabels(options?: { [key: string]: any }) {
+  return request<API.RegionListItem>('/api/statistic/tags', {
+    method: 'GET',
+    params: {
+      ...options,
+    },
+  //  ...(options || {}),
+  });
+}
+
+
 
 
 /* ============ 区域接口 start ============= */

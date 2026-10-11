@@ -1,4 +1,4 @@
-import { addRule, removeRule, rule, updateRule, getSignalList, getRegionOptions, getCameraIndexes, addSignal, getCleaningState, openSignal, closeSignal, updateSignal, taskDetailPage,cleanSimilarImages } from '@/services/ant-design-pro/api';
+import { addRule, removeRule, rule, updateRule, getSignalList, getRegionOptions, getTargetLabels, getCameraIndexes, addSignal, getCleaningState, openSignal, closeSignal, updateSignal, taskDetailPage,cleanSimilarImages } from '@/services/ant-design-pro/api';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns, ProDescriptionsItemProps, ProFormColumnsType } from '@ant-design/pro-components';
 import {
@@ -174,6 +174,7 @@ const TableList: React.FC = () => {
   const [jsonData, setJsonData] = useState<any>(null);
   const [regionOptions, setRegionOptions] = useState<{ value: string; label: string }[]>([]);
   const [cameraIndexes, setCameraIndexes] = useState<{ value: string; label: string }[]>([]);
+  const [targetLabels, setTargetLabels] = useState<{ value: string; label: string }[]>([]);
   const [isJsonModalLoading, setIsJsonModalLoading] = useState<boolean>(false);
   const [downloadAllState, setDownloadAll] =  useState<boolean>(false);
   const [isCleaningState, setCleaning] = useState<boolean>(false);
@@ -241,9 +242,23 @@ const TableList: React.FC = () => {
       }
     }
 
+    const fetchTargetLabels = async () => {
+      try {
+        const res = await getTargetLabels();
+        const options = (res.data || []).map((item) => ({
+          value: item.target,
+          label: item.target,
+        }));
+        setTargetLabels(options);
+      } catch (error) {
+        console.error('获取设备Id列表失败:', error);
+      }
+    }
+
     fetchRegionOptions();
     fetchCameraIndexCodeOptions();
     fechCleaningState();
+    fetchTargetLabels();
   }, []);
 
   // 在组件卸载时清除定时器
@@ -377,14 +392,17 @@ useEffect(() => {
       dataIndex: 'labels',
       hideInForm: true,
       valueType: 'select',
+      // request: targetLabels,
       // hideInSearch: true,
-      valueEnum: {
-        'hook': {
-          text: 'hook',
-        }
-      },
+      // valueEnum: {
+      //   'hook': {
+      //     text: 'hook',
+      //   }
+      // },
       fieldProps: {
         mode: 'multiple', // 设置为多选模式
+        showSearch: true, // 显示搜索框
+        options: targetLabels,
       },
       render: (dom, entity) => {
         if (entity.labelTypes !== undefined) {
@@ -615,6 +633,7 @@ useEffect(() => {
             folder: value.folder,
             start: moment(value.timeRange[0]).format('YYYYMMDDHHmmss'),
             end: moment(value.timeRange[1]).format('YYYYMMDDHHmmss'),
+            cutoff: value.cutoff
           }
           const response = await cleanSimilarImages(post_data);
           if (response.success) {
@@ -654,6 +673,19 @@ useEffect(() => {
           ]}
           name="timeRange"
           label="清理时间"
+        />
+        <ProFormDigit
+          rules={[
+            {
+              required: true,
+              message: 'cutoff必填',
+            },
+          ]}
+          initialValue={15}
+          min={1}
+          width="md"
+          name="cutoff"
+          label="cutoff"
         />
       </ModalForm>
       <ModalForm
